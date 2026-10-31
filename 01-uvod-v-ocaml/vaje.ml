@@ -185,10 +185,10 @@ let primer_seznam_3 =
 *----------------------------------------------------------------------------*)
 
 let izracunaj_skupni_znesek nakup cenik = 
-  let urejen_seznam = pretvori_v_seznam_parov_nakup 
-  |> pretvori_druge_komponente float.of_string in
-  let urejen_cenik = pretvori_v_seznam_parov_cenik
-  |> pretvori_druge_komponente float.of_string in
+  let urejen_seznam = pretvori_v_seznam_parov nakup
+  |> pretvori_druge_komponente float_of_string in
+  let urejen_cenik = pretvori_v_seznam_parov cenik
+  |> pretvori_druge_komponente float_of_string in
   let cena_izdelka izdelek =
     List.map ((fun (i1, p1) (i2, p2) -> if i1 = i2 then p1 *. p2 else 0.) (fst izdelek, snd izdelek)) urejen_cenik
     |> vsota_seznama in 

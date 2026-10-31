@@ -121,7 +121,12 @@ let rec zlozi_desno f b = function
     `f a1 x2 = (a2, y2)`...
   [*----------------------------------------------------------------------------*)
 
-let rec zlozi_levo_pretvori _ _ _ = failwith "TODO"
+let rec zlozi_levo_pretvori f a l =
+  match l with 
+  | [] -> (a, [])
+  | x :: xs ->
+    let (a', y) = f a x in
+    let (a'', ys) = zlozi_levo_pretvori f a' xs in (a'', y :: ys)
 
 (*----------------------------------------------------------------------------*
     Napišite funkcijo
@@ -135,7 +140,12 @@ let rec zlozi_levo_pretvori _ _ _ = failwith "TODO"
     `Neujemajoca_dimenzija`.
   [*----------------------------------------------------------------------------*)
 
-let rec zlozi_levo2 _ _ _ _ = failwith "TODO"
+let rec zlozi_levo2 f a l1 l2 =
+  match (l1, l2) with
+  | [], [] -> a
+  |  x :: xs, y :: ys ->
+    zlozi_levo2 f (f a x y) xs ys
+  | _ -> raise Neujemajoca_dimenzija
 
 (*----------------------------------------------------------------------------*
    ## Uporaba zlaganja
@@ -152,7 +162,7 @@ let rec zlozi_levo2 _ _ _ _ = failwith "TODO"
     - : float = 5.
   [*----------------------------------------------------------------------------*)
 
-let norma _ = failwith "TODO"
+let norma v = sqrt(zlozi_levo (fun acc x -> acc +. x*.x ) 0.0 v)
 
 (*----------------------------------------------------------------------------*
     Napišite funkcijo
@@ -165,7 +175,8 @@ let norma _ = failwith "TODO"
     - : float = 32.
   [*----------------------------------------------------------------------------*)
 
-let skalarni_produkt_zlozi _ _ = failwith "TODO"
+let skalarni_produkt_zlozi u v =
+  zlozi_levo2 (fun acc x y -> acc +. x *. y) 0.0 u v
 
 (*----------------------------------------------------------------------------*
    ## Prodajni avtomat
@@ -189,14 +200,22 @@ type kovanec = C10 | C20 | C50 | E1 | E2
    centih.
   [*----------------------------------------------------------------------------*)
 
-let vrednost _ = failwith "TODO"
+let vrednost kov = 
+  match kov with 
+  | C10 -> 10
+  | C20 -> 20
+  | C50 -> 50
+  | E1 -> 100
+  | E2 -> 200
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `vsota : kovanec list -> int`, ki vrne skupno vrednost
    seznama kovancev.
   [*----------------------------------------------------------------------------*)
 
-let vsota _ = failwith "TODO"
+let rec vsota l = match l with
+| [] -> 0
+| k :: ks -> vrednost k + vsota ks
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `drobiz : int -> kovanec list`, ki dani znesek izplača s
@@ -208,7 +227,15 @@ let vsota _ = failwith "TODO"
    postopek za preostali znesek.
   [*----------------------------------------------------------------------------*)
 
-let drobiz _ = failwith "TODO"
+let  rec drobiz n = 
+  match n with
+  | z when z >= 200 -> E2 :: drobiz (n-200)
+  | z when z >= 100 -> E1 :: drobiz (n-100)
+  | z when z >= 50 -> C50 :: drobiz (n-50)
+  | z when z >= 20 -> C20 :: drobiz (n-20)
+  | z when z >= 10 -> C10 :: drobiz (n-10)
+  | 0 -> []
+  | _ -> []
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `v_niz : int -> string`, ki znesek v centih zapiše kot niz
@@ -218,7 +245,7 @@ let drobiz _ = failwith "TODO"
    - : string = "12.05 €"
   [*----------------------------------------------------------------------------*)
 
-let v_niz _ = failwith "TODO"
+let v_niz n = Printf.sprintf "%d.%02d €" (n/100)(n mod 100)
 
 (*----------------------------------------------------------------------------*
    ### Zaloga
@@ -240,7 +267,14 @@ let zacetna_zaloga =
    zalogi poišče izdelek z danim imenom.
   [*----------------------------------------------------------------------------*)
 
-let rec poisci _ _ = failwith "TODO"
+let rec poisci ime zaloga = 
+  match zaloga with
+  | [] -> None
+  | izdelek :: ostali ->
+    if izdelek.ime = ime then
+      Some izdelek
+    else
+      poisci ime ostali
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo
    `spremeni_kolicino : string -> int -> izdelek list -> izdelek list`, ki
@@ -248,7 +282,16 @@ let rec poisci _ _ = failwith "TODO"
    negativno). Ostali izdelki naj ostanejo nespremenjeni.
   [*----------------------------------------------------------------------------*)
 
-let spremeni_kolicino _ _ _ = failwith "TODO"
+let rec spremeni_kolicino ime kolicina zaloga = 
+  match zaloga with
+  | [] -> []
+  | izdelek :: ostali ->
+    if izdelek.ime = ime then
+      { izdelek with kolicina = izdelek.kolicina + kolicina} 
+    :: ostali
+    else
+      izdelek :: spremeni_kolicino ime kolicina ostali
+
 
 (*----------------------------------------------------------------------------*
    ### Stanje, vnosi in izhodi
@@ -301,7 +344,13 @@ let zacetno_stanje = { nacin = Obratuje; kredit = 0; zaloga = zacetna_zaloga }
    - `NiVVzdrzevanju`: `"Avtomat ni v vzdrževanju"`.
   [*----------------------------------------------------------------------------*)
 
-let opis_napake _ = failwith "TODO"
+let opis_napake napaka = 
+  match napaka with
+  | Premalo n -> "Vstavite še " ^ v_niz n
+  | NiIzdelka ime -> "Izdelka " ^ ime ^ " ni"
+  | Razprodano ime -> "Izdelek " ^ ime ^ " je razprodan"
+  | VVzdrzevanju -> "Avtomat je v vzdrževanju"
+  | NiVVzdrzevanju -> "Avtomat ni v vzdrževanju"
 
 (*----------------------------------------------------------------------------*
    ### Korak avtomata
@@ -345,7 +394,48 @@ let opis_napake _ = failwith "TODO"
    - : izhod = Vrni [C50]
   [*----------------------------------------------------------------------------*)
 
-let korak _ _ = failwith "TODO"
+let korak stanje vnos =
+  match stanje.nacin, vnos with
+  | Obratuje, Vstavi k ->
+      let kredit = stanje.kredit + vrednost k in
+      ({ stanje with kredit }, Prikazi kredit)
+
+  | Obratuje, Izberi ime ->
+      (match poisci ime stanje.zaloga with
+      | None -> (stanje, Napaka (NiIzdelka ime))
+      | Some i when i.kolicina = 0 -> (stanje, Napaka (Razprodano ime))
+      | Some i when stanje.kredit < i.cena ->
+          (stanje, Napaka (Premalo (i.cena - stanje.kredit)))
+      | Some i ->
+          let drop = stanje.kredit - i.cena in
+          ({ stanje with
+             kredit = 0;
+             zaloga = spremeni_kolicino ime (-1) stanje.zaloga },
+           Izdaj {
+             izdelek = ime;
+             cena = i.cena;
+             drobiz = drobiz drop
+           }))
+  | Obratuje, Preklici ->
+      ({ stanje with kredit = 0 }, Vrni (drobiz stanje.kredit))
+  | Obratuje, ZacniVzdrzevanje ->
+      ({ stanje with nacin = Vzdrzevanje; kredit = 0 },
+       Vrni (drobiz stanje.kredit))
+  | Obratuje, (KoncajVzdrzevanje | Dopolni _) ->
+      (stanje, Napaka NiVVzdrzevanju)
+  | Vzdrzevanje, Vstavi k -> (stanje, Vrni [k])
+  | Vzdrzevanje, (Izberi _ | Preklici | ZacniVzdrzevanje) ->
+      (stanje, Napaka VVzdrzevanju)
+  | Vzdrzevanje, KoncajVzdrzevanje ->
+      ({ stanje with nacin = Obratuje }, Prikazi stanje.kredit)
+  | Vzdrzevanje, Dopolni (ime, n) ->
+      (match poisci ime stanje.zaloga with
+      | None -> (stanje, Napaka (NiIzdelka ime))
+      | Some _ ->
+          ({ stanje with
+             zaloga = spremeni_kolicino ime n stanje.zaloga },
+           Prikazi stanje.kredit))
+
 
 let primer_vnosi =
   [
@@ -386,7 +476,13 @@ let primer_vnosi =
      Izdaj {izdelek = "cokolada"; cena = 120; drobiz = []}])
   [*----------------------------------------------------------------------------*)
 
-let simuliraj _ _ = failwith "TODO"
+let rec simuliraj stanje vnosi = 
+  match vnosi with
+  | [] -> stanje, []
+  | vnos :: ostali -> 
+    let novo_stanje, izhod = korak stanje vnos in
+    let koncno_stanje, izhodi = simuliraj novo_stanje ostali in
+    (koncno_stanje, izhod :: izhodi)
 
 (*----------------------------------------------------------------------------*
    ### Analiza izhodov
@@ -400,7 +496,13 @@ let simuliraj _ _ = failwith "TODO"
    - : int = 240
   [*----------------------------------------------------------------------------*)
 
-let promet _ = failwith "TODO"
+let rec promet izdelki = 
+  match izdelki with
+  | [] -> 0
+  | Izdaj x :: ostali ->
+    x.cena + promet ostali
+  | _ :: ostali ->
+    promet ostali
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `napake : izhod list -> napaka list`, ki vrne seznam vseh
@@ -411,7 +513,13 @@ let promet _ = failwith "TODO"
    [Razprodano "cips"; NiIzdelka "kava"; Razprodano "cokolada"; VVzdrzevanju]
   [*----------------------------------------------------------------------------*)
 
-let napake _ = failwith "TODO"
+let rec napake izhodi = 
+  match izhodi with
+  | [] -> []
+  | Napaka n :: ostali ->
+    n :: napake ostali
+  | _ :: ostali ->
+    napake ostali
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `izplacani_kovanci : izhod list -> kovanec list`, ki vrne
@@ -422,7 +530,16 @@ let napake _ = failwith "TODO"
    - : kovanec list = [C50; C20; C10; C50]
   [*----------------------------------------------------------------------------*)
 
-let izplacani_kovanci _ = failwith "TODO"
+let rec izplacani_kovanci izhodi = 
+  match izhodi with
+  | [] -> []
+  | Izdaj x :: ostali ->
+    x.drobiz @ izplacani_kovanci ostali
+  | Vrni kovanci :: ostali ->
+    kovanci @ izplacani_kovanci ostali
+  | _ :: ostali ->
+    izplacani_kovanci ostali
+
 
 (*----------------------------------------------------------------------------*
    Sestavite funkcijo `prodano : izhod list -> (string * int) list`, ki za vsak
@@ -437,7 +554,21 @@ let izplacani_kovanci _ = failwith "TODO"
    - : (string * int) list = [("voda", 2); ("cokolada", 1)]
   [*----------------------------------------------------------------------------*)
 
-let prodano _ = failwith "TODO"
+let prodano izhodi =
+  let rec povecaj ime prodani =
+    match prodani with
+    | [] -> [(ime, 1)]
+    | (i, n) :: ostali ->
+        if i = ime then (i, n + 1) :: ostali
+        else (i, n) :: povecaj ime ostali
+  in
+  let rec obdelaj izhodi prodani =
+    match izhodi with
+    | [] -> prodani
+    | Izdaj x :: ostali -> obdelaj ostali (povecaj x.izdelek prodani)
+    | _ :: ostali -> obdelaj ostali prodani
+  in
+  obdelaj izhodi []
 
 (* Pripomočki za testiranje - ignorirajte *)
 
